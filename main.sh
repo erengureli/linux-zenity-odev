@@ -22,7 +22,7 @@ fi
 if [ ! -f $log ]; then
     touch $log
     echo "id,date,userId,product,log" > $log
-    echo "0,$(date),-1,System,log.csv dosyası oluşturuldu." >> $log
+    echo "0,$(date),-1,,log.csv dosyası oluşturuldu." >> $log
 fi
 
 # Hızlı loglamak için fonksiyon -> userId product log
@@ -39,13 +39,12 @@ logging(){
 }
 
 # Giriş bilgilerinin zenity forms ile alınması
-#loginData=$(zenity --forms \
-#    --title="Giriş Yapınız" \
-#    --text="Lütfen id ve şifrenizi giriniz" \
-#    --separator="," \
-#    --add-entry="ID" \
-#    --add-password="Şifre")
-loginData="0,1234"
+loginData=$(zenity --forms \
+    --title="Giriş Yapınız" \
+    --text="Lütfen id ve şifrenizi giriniz" \
+    --separator="," \
+    --add-entry="ID" \
+    --add-password="Şifre")
 
 # Form iptal edildiyse programı kapatıyoruz
 if [ $? -ne 0 ]; then
@@ -182,6 +181,10 @@ productAdd(){
 
                 echo "$(($lastProductId+1)),${newProduct[0]},${newProduct[1]},${newProduct[2]},${newProduct[3]}" >> $depo
                 
+                logging "${user[0]}" "$(($lastProductId+1))" "Yeni bir ürün eklenmiştir."
+                progress "Ürün Oluşturuluyor" "Bilgiler kontrol ediliyor" ".csv dosyası açılıyor" "ID atanıyor" "Kaydediliyor"
+                zenity --info --text="Ürün başarıyla eklenmiştir."
+                
                 unset lastProductId
             fi
 
@@ -261,11 +264,19 @@ productUpd(){
                         if [ $PRODUCT_FIND = true ]; then
                             zenity --error --text="Aynı isimde birden fazla ürün bulunamaz."
                         else
-                            updProduct=${productData[0]}","$( [ "${newProduct[0]}" == "" ] && echo ${productData[1]} || echo ${newProduct[0]} )","$( [ "${newProduct[1]}" == "" ] && echo ${productData[2]} || echo ${newProduct[1]} )","$( [ "${newProduct[2]}" == "" ] && echo ${productData[3]} || echo ${newProduct[2]} )","$( [ "${newProduct[3]}" == "" ] && echo ${productData[4]} || echo ${newProduct[3]} )
+                            # Güncelleme işlemi için onay alıyoruz
+                            zenity --question --text="Eski veriler kalıcı olarak silinecektir. Kaydetmek istediğinize emin misiniz?"
+                            if [ $? -eq 0 ]; then
+                                updProduct=${productData[0]}","$( [ "${newProduct[0]}" == "" ] && echo ${productData[1]} || echo ${newProduct[0]} )","$( [ "${newProduct[1]}" == "" ] && echo ${productData[2]} || echo ${newProduct[1]} )","$( [ "${newProduct[2]}" == "" ] && echo ${productData[3]} || echo ${newProduct[2]} )","$( [ "${newProduct[3]}" == "" ] && echo ${productData[4]} || echo ${newProduct[3]} )
 
-                            sed -i $index"s/.*/$updProduct/" $depo
+                                sed -i $index"s/.*/$updProduct/" $depo
 
-                            unset updProduct
+                                logging "${user[0]}" "${productData[0]}" "Ürün güncellenmiştir."
+                                progress "Ürün Güncelleniyor" "Bilgiler kontrol ediliyor" ".csv dosyası açılıyor" "Bilgiler değiştiriliyor" "Kaydediliyor"
+                                zenity --info --text="Ürün başarıyla güncellenmiştir."
+
+                                unset updProduct
+                            fi
                         fi
 
                         unset HEADER_SKIPPED
@@ -295,8 +306,16 @@ productDel(){
         --add-entry="ID" )
     index=$(($productDelId+2))
     
-    if [ $? -eq 0 ] && [ ! $productDelId == "" ] && [ ! $(wc -l < $depo) -lt $index ]; then    
-        sed -i $index"s/.*/$productDelId,,,,/" $depo
+    if [ $? -eq 0 ] && [ ! $productDelId == "" ] && [ ! $(wc -l < $depo) -lt $index ]; then 
+        # Silme işlemi için onay alıyoruz
+        zenity --question --text="Eski veriler kalıcı olarak silinecektir. Silmek istediğinize emin misiniz?"
+        if [ $? -eq 0 ]; then
+            sed -i $index"s/.*/$productDelId,,,,/" $depo
+
+            logging "${user[0]}" "$productDelId" "Ürün silinmiştir."
+            progress "Ürün Siliniyor" "Bilgiler kontrol ediliyor" ".csv dosyası açılıyor" "Bilgiler siliniyor" "Kaydediliyor"
+            zenity --info --text="Ürün başarıyla silinmiştir."
+        fi
     else
         zenity --error --text="Bu ID'ye sahip bir ürün bulunmamaktadır!"
     fi
@@ -463,15 +482,17 @@ userAdd(){
             zenity --error --text="Hiçbir girdi boş bırakılamaz!"
         else
             lastUserId=$(tail -n 1 $kullanici | awk -F',' '{printf $1}')
-            if [[ "$lastUserId" =~ ^[0-9]+$ ]]; then
+            if [[ ! "$lastUserId" =~ ^[0-9]+$ ]]; then
                 lastUserId=-1
             fi
 
             echo "$(($lastUserId+1)),${newUser[0]},${newUser[1]},$([ "${newUser[2]}" == "Admin" ] && echo "1" || echo "0"),$(echo -n ${newUser[3]} | md5sum | awk '{print $1}'),0" >> $kullanici
 
+            logging "${user[0]}" "" "Yeni kullanıcı eklenmiştir."
+            progress "Kullanıcı Oluşturuluyor" "Bilgiler kontrol ediliyor" ".csv dosyası açılıyor" "ID atanıyor" "Kaydediliyor"
+            zenity --info --text="Kullanıcı başarıyla eklenmiştir."
+
             unset lastUserId
-            #progress "Kullanıcı oluşturuluyor" "Bilgiler kontrol ediliyr" ".csv dosyası açılıyor" "ID atanıyor" "Kaydediliyor"
-            #zenity --info --text="Kullanıcı başarıyla eklenmiştir."
         fi
     fi
 
@@ -511,14 +532,22 @@ userUpd(){
 
                 # Ok tuşuna basılırsa
                 if [ $? -eq 0 ]; then
-                    # Forma girilen girdileri array'e dönüştürüyoruz
-                    IFS="," read -ra newUser <<< $newUser
+                    # Güncelleme işlemi için onay alıyoruz
+                    zenity --question --text="Eski veriler kalıcı olarak silinecektir. Kaydetmek istediğinize emin misiniz?"
+                    if [ $? -eq 0 ]; then
+                        # Forma girilen girdileri array'e dönüştürüyoruz
+                        IFS="," read -ra newUser <<< $newUser
 
-                    updUser=${userData[0]}","$( [ "${newUser[0]}" == "" ] && echo ${userData[1]} || echo ${newUser[0]} )","$( [ "${newUser[1]}" == "" ] && echo ${userData[2]} || echo ${newUser[1]} )","$( [ "${newUser[2]}" == "" ] && echo ${userData[3]} || echo $([ "${newUser[2]}" == "Admin" ] && echo "1" || echo "0"))","$( [ "${newUser[3]}" == "" ] && echo ${userData[4]} || echo $(echo -n ${newUser[3]} | md5sum | awk '{print $1}') )","$( [ "${newUser[4]}" == "" ] && echo ${userData[5]} || echo ${newUser[4]} )
-                    
-                    sed -i $index"s/.*/$updUser/" $kullanici
+                        updUser=${userData[0]}","$( [ "${newUser[0]}" == "" ] && echo ${userData[1]} || echo ${newUser[0]} )","$( [ "${newUser[1]}" == "" ] && echo ${userData[2]} || echo ${newUser[1]} )","$( [ "${newUser[2]}" == "" ] && echo ${userData[3]} || echo $([ "${newUser[2]}" == "Admin" ] && echo "1" || echo "0"))","$( [ "${newUser[3]}" == "" ] && echo ${userData[4]} || echo $(echo -n ${newUser[3]} | md5sum | awk '{print $1}') )","$( [ "${newUser[4]}" == "" ] && echo ${userData[5]} || echo ${newUser[4]} )
+                        
+                        sed -i $index"s/.*/$updUser/" $kullanici
 
-                    unset updUser
+                        logging "${user[0]}" "" "Kullanıcı güncellenmiştir."
+                        progress "Kullanıcı Güncelleniyor" "Bilgiler kontrol ediliyor" ".csv dosyası açılıyor" "Bilgiler değiştiriliyor" "Kaydediliyor"
+                        zenity --info --text="Kullanıcı başarıyla güncellenmiştir."
+
+                        unset updUser
+                    fi
                 fi
 
                 unset userData
@@ -544,8 +573,16 @@ userDel(){
         --add-entry="ID" )
     index=$(($userDelId+2))
     
-    if [ ! $(wc -l < $kullanici) -lt $index ] && [ $? -eq 0 ]; then    
-        sed -i $index"s/.*/$userDelId,,,,,/" $kullanici
+    if [ ! $(wc -l < $kullanici) -lt $index ] && [ $? -eq 0 ]; then 
+        # Silme işlemi için onay alıyoruz
+        zenity --question --text="Eski veriler kalıcı olarak silinecektir. Silmek istediğinize emin misiniz?"
+        if [ $? -eq 0 ]; then 
+            sed -i $index"s/.*/$userDelId,,,,,/" $kullanici
+
+            logging "${user[0]}" "" "Kullanıcı silinmiştir."
+            progress "Kullanıcı Siliniyor" "Bilgiler kontrol ediliyor" ".csv dosyası açılıyor" "Bilgiler siliniyor" "Kaydediliyor"
+            zenity --info --text="Kullanıcı başarıyla silinmiştir."
+        fi
     else
         zenity --error --text="Bu ID'ye sahip bir kullanıcı bulunmamaktadır!"
     fi
@@ -569,6 +606,10 @@ backup(){
         --directory)
     if [ $? -eq 0 ] && [ ! $backupLoc == "" ]; then
         cp $folder/* $backupLoc
+        
+        logging "${user[0]}" "" "Backup dosyası oluşturulmuştur."
+        progress "Backup Dosyası oluşturuluyor" "Bilgiler kontrol ediliyor" ".csv dosyasyaları kopyalanıyor" "Kaydediliyor" "Kaydediliyor"
+        zenity --info --text="Backup dosyası başarıyla oluşturulmuştur."
     fi
 }
 
