@@ -213,8 +213,8 @@ productUpd(){
         # Sayı mı kontrol
         if [[ $productUpdId =~ ^[0-9]+$ ]]; then
             # Bu ID de kullanıcı var mı
-            if [ ! $(wc -l < $depo) -lt $index ] && [ ! $(sed -n $(($productUpdId+2))"p" $depo) == $productUpdId",,,,," ]; then
-                IFS="," read -ra productData <<< $(sed -n $(($productUpdId+2))"p" $depo)
+            if [ ! $(wc -l < $depo) -lt $index ] && [ ! $(sed -n $index"p" $depo) == $productUpdId",,,," ]; then
+                IFS="," read -ra productData <<< $(sed -n $index"p" $depo)
                 
                 newProduct=$(zenity --forms \
                     --title="Yeni Ürün Ekle" \
@@ -296,7 +296,7 @@ productDel(){
     index=$(($productDelId+2))
     
     if [ $? -eq 0 ] && [ ! $productDelId == "" ] && [ ! $(wc -l < $depo) -lt $index ]; then    
-        sed -i $index"s/.*/$productDelId,,,,,/" $depo
+        sed -i $index"s/.*/$productDelId,,,,/" $depo
     else
         zenity --error --text="Bu ID'ye sahip bir ürün bulunmamaktadır!"
     fi
@@ -470,8 +470,8 @@ userAdd(){
             echo "$(($lastUserId+1)),${newUser[0]},${newUser[1]},$([ "${newUser[2]}" == "Admin" ] && echo "1" || echo "0"),$(echo -n ${newUser[3]} | md5sum | awk '{print $1}'),0" >> $kullanici
 
             unset lastUserId
-            progress "Kullanıcı oluşturuluyor" "Bilgiler kontrol ediliyr" ".csv dosyası açılıyor" "ID atanıyor" "Kaydediliyor"
-            zenity --info --text="Kullanıcı başarıyla eklenmiştir."
+            #progress "Kullanıcı oluşturuluyor" "Bilgiler kontrol ediliyr" ".csv dosyası açılıyor" "ID atanıyor" "Kaydediliyor"
+            #zenity --info --text="Kullanıcı başarıyla eklenmiştir."
         fi
     fi
 
@@ -492,37 +492,44 @@ userUpd(){
         --add-entry="ID" )
     index=$(($userUpdId+2))
 
-    # Verilen ID'de biri varsa ve Ok tuşuna basıldıysa
-    if [ ! $(wc -l < $kullanici) -lt $index ] && [ $? -eq 0 ]; then
-        IFS="," read -ra userData <<< $(sed -n $(($userUpdId+2))"p" $kullanici)
-        
-        newUser=$(zenity --forms \
-            --title="Kullanıcı Güncelle" \
-            --text="Gerekli bilgileri giriniz." \
-            --separator="," \
-            --add-entry="Ad" \
-            --add-entry="Soyad" \
-            --add-combo="Yetki" --combo-values="User|Admin" \
-            --add-password="Şifre" \
-            --add-entry="Şifre Denenme Sayısı")
+    # Ok a basıldıysa ve girdi boş değilse
+    if [ $? -eq 0 ] && [ ! $userUpdId == "" ]; then
+        if [[ $userUpdId =~ ^[0-9]+$ ]]; then
+            # Bu ID de kullanıcı var mı
+            if [ ! $(wc -l < $kullanici) -lt $index ] && [ ! $(sed -n $index"p" $depo) == $userUpdId",,,,," ]; then
+                IFS="," read -ra userData <<< $(sed -n $index"p" $kullanici)
+                
+                newUser=$(zenity --forms \
+                    --title="Kullanıcı Güncelle" \
+                    --text="Gerekli bilgileri giriniz." \
+                    --separator="," \
+                    --add-entry="Ad" \
+                    --add-entry="Soyad" \
+                    --add-combo="Yetki" --combo-values="User|Admin" \
+                    --add-password="Şifre" \
+                    --add-entry="Şifre Denenme Sayısı")
 
-        # Ok tuşuna basılırsa
-        if [ $? -eq 0 ]; then
-            # Forma girilen girdileri array'e dönüştürüyoruz
-            IFS="," read -ra newUser <<< $newUser
+                # Ok tuşuna basılırsa
+                if [ $? -eq 0 ]; then
+                    # Forma girilen girdileri array'e dönüştürüyoruz
+                    IFS="," read -ra newUser <<< $newUser
 
-            updUser=${userData[0]}","$( [ "${newUser[0]}" == "" ] && echo ${userData[1]} || echo ${newUser[0]} )","$( [ "${newUser[1]}" == "" ] && echo ${userData[2]} || echo ${newUser[1]} )","$( [ "${newUser[2]}" == "" ] && echo ${userData[3]} || echo $([ "${newUser[2]}" == "Admin" ] && echo "1" || echo "0"))","$( [ "${newUser[3]}" == "" ] && echo ${userData[4]} || echo $(echo -n ${newUser[3]} | md5sum | awk '{print $1}') )","$( [ "${newUser[4]}" == "" ] && echo ${userData[5]} || echo ${newUser[4]} )
-            
-            sed -i $index"s/.*/$updUser/" $kullanici
+                    updUser=${userData[0]}","$( [ "${newUser[0]}" == "" ] && echo ${userData[1]} || echo ${newUser[0]} )","$( [ "${newUser[1]}" == "" ] && echo ${userData[2]} || echo ${newUser[1]} )","$( [ "${newUser[2]}" == "" ] && echo ${userData[3]} || echo $([ "${newUser[2]}" == "Admin" ] && echo "1" || echo "0"))","$( [ "${newUser[3]}" == "" ] && echo ${userData[4]} || echo $(echo -n ${newUser[3]} | md5sum | awk '{print $1}') )","$( [ "${newUser[4]}" == "" ] && echo ${userData[5]} || echo ${newUser[4]} )
+                    
+                    sed -i $index"s/.*/$updUser/" $kullanici
 
-            unset updUser
+                    unset updUser
+                fi
+
+                unset userData
+                unset newUser
+                
+            else
+                zenity --error --text="Bu ID'ye sahip bir kullanıcı bulunmamaktadır!"
+            fi
+        else
+            zenity --error --text="ID 0'dan büyük tam sayı olmalıdır!"
         fi
-
-        unset userData
-        unset newUser
-        
-    else
-        zenity --error --text="Bu ID'ye sahip bir kullanıcı bulunmamaktadır!"
     fi
     
     unset userUpdId
@@ -553,14 +560,16 @@ userDel(){
 diskSpace(){
     zenity --info \
         --title="Disk Alanı" \
-        --text="depo.csv: $(du -h $depo | cut -f1)\nkullanici.csv: $(du -h $kullanici | cut -f1)\nlog.csv: $(du -h $log | cut -f1)\nmain.sh: $(du -h "main.sh" | cut -f1)\nTotal: $(du -b $depo $kullanici $log "main.sh" | awk '{total += $1} END {print total}')"
+        --text="depo.csv:\t\t$(du -h $depo | cut -f1)\nkullanici.csv:\t$(du -h $kullanici | cut -f1)\nlog.csv:\t\t$(du -h $log | cut -f1)\nmain.sh:\t\t$(du -h "main.sh" | cut -f1)\nTotal:\t\t\t$(du -h $depo $kullanici $log "main.sh" | awk '{total += $1} END {print total}')K"
 }
 
 backup(){
     backupLoc=$(zenity --file-selection \
         --title="Boş bir klasör seçini" \
         --directory)
-    cp $folder/* $backupLoc
+    if [ $? -eq 0 ] && [ ! $backupLoc == "" ]; then
+        cp $folder/* $backupLoc
+    fi
 }
 
 logList(){
