@@ -422,7 +422,7 @@ categoryList(){
         done < $depo
 
         zenity --info \
-            --title="$lStock'dan Az Stok" \
+            --title="$category" \
             --text="$infoText" \
             --width=500
     fi
