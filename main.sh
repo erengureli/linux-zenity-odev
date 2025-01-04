@@ -220,7 +220,7 @@ productUpd(){
                 IFS="," read -ra productData <<< $(sed -n $index"p" $depo)
                 
                 newProduct=$(zenity --forms \
-                    --title="Yeni Ürün Ekle" \
+                    --title="Ürün Güncelle" \
                     --text="Gerekli bilgileri giriniz." \
                     --separator="," \
                     --add-entry="Ürün İsmi" \
@@ -651,7 +651,11 @@ while true; do
     # Seçilen işlem için switch case
     case $choice in
         "Çıkış Yap" | "")
-            exit 1
+            # Çıkma işlemi için onay alıyoruz
+            zenity --question --text="Çıkış yapmak istediğinize emin misiniz?"
+            if [ $? -eq 0 ]; then
+                exit 1
+            fi
             ;;
         "Ürün Ekle")
             if [ ${user[3]} -eq 1 ]; then
