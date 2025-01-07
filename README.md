@@ -1,5 +1,6 @@
 # linux-zenity-odev
 ### [Videonun Linki](https://youtu.be/RCDL3Twc0Qc)
+### [GitHub Linki](https://github.com/erengureli/linux-zenity-odev)
 
 Bu proje zenity kütüphanesi kullanılarak linux bash içinde yazılmış envanter sistemidir. Projenin amacı linux bash ve zenity'yi daha detaylı öğrenebilmektir. Şimdi bütün menüleri teker teker gösterip açıklayacağım.
 
